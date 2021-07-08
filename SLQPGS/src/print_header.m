@@ -1,44 +1,47 @@
-function print_header(i,o,q)
+function print_header(o,p,q)
 
-% function print_header(i,o,q)
+% function print_header(o,p,q)
 %
 % Author       : Frank E. Curtis
-% Description  : Prints header to output file including problem name, size,
-%                and size of the subproblem.
-% Input        : i ~ inputs
-%                o ~ outputs
+% Description  : Prints header to output file.
+% Input        : o ~ output data
+%                p ~ parameters
 %                q ~ quantities
-% Last revised : 28 October 2009
-
-% Set problem name
-if ~isfield(i,'name'), i.name = '(not specified)'; end;
-
-% Print problem name
-fprintf(o.fout,'Problem\n');
-fprintf(o.fout,'=======\n');
-fprintf(o.fout,'  Name..................... : %s\n',i.name);
-fprintf(o.fout,'\n');
+% Last revised : 1 February 2011
 
 % Print problem size
 fprintf(o.fout,'Problem size\n');
 fprintf(o.fout,'============\n');
-fprintf(o.fout,'  # of variables........... : %4d\n',q.n);
-fprintf(o.fout,'  # of objectives.......... : %4d (%4d smooth, %4d nonsmooth)\n',  1,q.vfs,q.vfn);
-fprintf(o.fout,'  # of constraints......... : %4d (%4d smooth, %4d nonsmooth)\n',q.m,q.vcs,q.vcn);
-fprintf(o.fout,'  # of auxiliary variables. : %4d\n',q.a);
-fprintf(o.fout,'  # of sample points....... : %4d\n',q.p);
-fprintf(o.fout,'\n');
-
-% Print subproblem name
-fprintf(o.fout,'Subproblem\n');
-fprintf(o.fout,'==========\n');
-fprintf(o.fout,'  Type..................... : %s\n',i.alg);
+fprintf(o.fout,'  # of variables.................... : %6d\n',q.nV);
+fprintf(o.fout,'  # of equality constraints......... : %6d\n',q.nE);
+fprintf(o.fout,'  # of inequality constraints....... : %6d\n',q.nI);
 fprintf(o.fout,'\n');
 
 % Print subproblem size
-fprintf(o.fout,'Subproblem size\n');
-fprintf(o.fout,'===============\n');
-fprintf(o.fout,'  # of variables........... : %4d\n',q.n+q.a);
-fprintf(o.fout,'  # of linear constraints.. : %4d\n',q.vfs+q.vcs+(q.p+1)*(q.vfn+q.vcn));
-fprintf(o.fout,'  # of bound constraints... : %4d\n',q.a-1);
+fprintf(o.fout,'Maximum subproblem size (%s,%s)\n',p.algorithm,p.sp_problem);
+if strcmp(p.algorithm,'SQPGS') == 1 & strcmp(p.sp_problem,'primal') == 1
+  fprintf(o.fout,'======================================\n');
+  fprintf(o.fout,'  # of variables.................... : %6d\n',q.nV+1+q.nE+q.nI);
+  fprintf(o.fout,'  # of linear equality constraints.. : %6d\n',0);
+  fprintf(o.fout,'  # of linear inequality constraints : %6d\n',1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  fprintf(o.fout,'  # of bound constraints............ : %6d\n',q.nE+q.nI);
+elseif strcmp(p.algorithm,'SQPGS') == 1
+  fprintf(o.fout,'====================================\n');
+  fprintf(o.fout,'  # of variables.................... : %6d\n',q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  fprintf(o.fout,'  # of linear equality constraints.. : %6d\n',q.nV+1);
+  fprintf(o.fout,'  # of linear inequality constraints : %6d\n',q.nE+q.nI);
+  fprintf(o.fout,'  # of bound constraints............ : %6d\n',1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+elseif strcmp(p.sp_problem,'primal') == 1
+  fprintf(o.fout,'======================================\n');
+  fprintf(o.fout,'  # of variables.................... : %6d\n',q.nV+1+q.nE+q.nI);
+  fprintf(o.fout,'  # of linear equality constraints.. : %6d\n',0);
+  fprintf(o.fout,'  # of linear inequality constraints : %6d\n',1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  fprintf(o.fout,'  # of bound constraints............ : %6d\n',2*q.nV+q.nE+q.nI);
+else
+  fprintf(o.fout,'====================================\n');
+  fprintf(o.fout,'  # of variables.................... : %6d\n',1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV);
+  fprintf(o.fout,'  # of linear equality constraints.. : %6d\n',q.nV+1);
+  fprintf(o.fout,'  # of linear inequality constraints : %6d\n',q.nE+q.nI);
+  fprintf(o.fout,'  # of bound constraints............ : %6d\n',1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV);
+end
 fprintf(o.fout,'\n');

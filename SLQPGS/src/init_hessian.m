@@ -1,14 +1,31 @@
-function z = init_hessian(i,q,z)
+function z = init_hessian(p,q,z)
 
-% function z = init_hessian(i,q,z)
+% function z = init_hessian(p,q,z)
 %
 % Author       : Frank E. Curtis
-% Description  : Initializes Hessian matrix.
-% Input        : i ~ input values
+% Description  : Initializes BFGS approximation to Hessian of Lagrangian.
+% Input        : p ~ parameters
 %                q ~ quantities
 %                z ~ iterate
 % Output       : z ~ updated iterate
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
-% Initialize Hessian matrix (default: max(1,||merit gradient||)*I)
-if isfield(i,'H'), z.H = i.H; else z.H = max(1,norm(z.grad))*eye(q.n); end;
+% Check algorithm
+if strcmp(p.algorithm,'SQPGS') == 1
+
+  % Initialize gradient multipliers
+  d = init_multipliers(q,z);
+
+  % Evaluate Lagrangian gradient
+  z = eval_lagrangian_gradient(q,z,d);
+  
+  % Initialize ``last'' point
+  z.x_last = z.x(:,1);
+  
+  % Initialize ``last'' gradient
+  z.grad_last = z.grad;
+  
+  % Initialize Hessian matrix
+  z.H = max(1,norm(z.grad))*speye(q.nV);
+  
+end

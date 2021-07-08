@@ -1,42 +1,58 @@
-function [c,d] = run_subproblem_solver(c,p,q,z)
+function [c,d] = run_subproblem_solver(c,p,q)
 
-% function [c,d] = run_subproblem_solver(c,p,q,z)
+% function [c,d] = run_subproblem_solver(c,p,q)
 %
 % Author       : Frank E. Curtis
 % Description  : Runs subproblem solver and increments counter.
 % Input        : c ~ counters
 %                p ~ parameters
 %                q ~ quantities
-%                z ~ iterate
 % Output       : c ~ updated counters
 %                d ~ direction
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
-% Set linear objective term
-g = [sparse(q.n,1); z.rho; ones(q.a-1,1)];
-
-% Run subproblem solver
-if strcmp(p.alg,'SQPGS') == 1
-  
-  % Set Hessian matrix
-  H = [z.H sparse(q.n,q.a); sparse(q.a,q.n) sparse(q.a,q.a)];
-  
+% Check algorithm
+if strcmp(p.algorithm,'SQPGS') == 1
+    
   % Solve quadratic program
-  [dir,obj,flag] = feval(p.solver,H,g,q.A,q.b,[],[],q.l,q.u,[],q.options);
-  
+  [primals,~,flag,~,duals] = feval(p.sp_solver,q.H,q.g,q.AI,q.bI,q.AE,q.bE,q.l,q.u,[],p.sp_options);
+    
 else
   
-  % Set trust region bounds
-  q.l(1:q.n) = -sqrt(10)*z.epsilon/sqrt(p.xi_lower);
-  q.u(1:q.n) =  sqrt(10)*z.epsilon/sqrt(p.xi_lower);
-
-  % Solver linear program
-  [dir,obj,flag] = feval(p.solver,g,q.A,q.b,[],[],q.l,q.u,[],q.options);
-
+  % Solve linear program
+  [primals,~,flag,~,duals] = feval(p.sp_solver,q.g,q.AI,q.bI,q.AE,q.bE,q.l,q.u,[],p.sp_options);
+  
 end
 
-% Set output
-d.x = dir(1:q.n); d.flag = flag;
+% Check subproblem type
+if strcmp(p.sp_problem,'primal') == 1
 
-% Update counters
-c.solver = c.solver + 1;
+  % Set primal step
+  d.x = primals(1:q.nV);
+
+  % Set gradient multipliers
+  d.m = duals.ineqlin;
+
+elseif strcmp(p.algorithm,'SQPGS') == 1
+
+  % Set primal step
+  d.x = primals(1:q.nV);
+
+  % Set gradient multipliers
+  d.m = primals(q.nV+1:q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+
+else
+
+  % Set primal step
+  d.x = -duals.eqlin(1:q.nV);
+
+  % Set gradient multipliers
+  d.m = primals(1:1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  
+end
+
+% Set flag
+d.flag = flag;
+
+% Increment subproblem solver counter
+c.s = c.s + 1;

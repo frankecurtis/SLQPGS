@@ -4,9 +4,9 @@ function r = run_optimization(i)
 %
 % Author       : Frank E. Curtis
 % Description  : Runs optimization algorithm.
-% Input        : i ~ input values
-% Output       : r ~ return values
-% Last revised : 28 October 2009
+% Input        : i ~ inputs
+% Output       : r ~ returns
+% Last revised : 1 February 2011
 
 % Initialize output
 o = init_output(i);
@@ -18,21 +18,21 @@ c = init_counters;
 p = init_parameters(i);
 
 % Initialize quantities
-q = init_quantities(i);
+q = init_quantities(i,p);
 
 % Initialize iterate
 [c,z] = init_iterate(i,c,p,q);
 
-% Initialize return values
+% Initialize returns
 r = init_returns(o,p,q,z);
 
 % Print output header
-print_header(i,o,q);
+print_header(o,p,q);
 
 % Print break
 print_break(o,c);
 
-% Main loop
+% Iteration loop
 while run_termination_check(r)
   
   % Print iterate

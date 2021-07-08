@@ -6,7 +6,7 @@ function c = init_counters
 % Description  : Initializes counters for iterations, function evaluations,
 %                subproblem solutions, and CPU time.
 % Output       : c ~ counters
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
 % Initialize iteration counter
 c.k = 0;
@@ -16,7 +16,7 @@ c.f = 0;
 c.g = 0;
 
 % Initialize subproblem solution counter
-c.solver = 0;
+c.s = 0;
 
 % Initialize clock
 tic;

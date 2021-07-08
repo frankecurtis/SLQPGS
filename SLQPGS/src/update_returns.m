@@ -4,19 +4,19 @@ function r = update_returns(o,c,p,z,r)
 %
 % Author       : Frank E. Curtis
 % Description  : Updates return values.
-% Input        : o ~ output values
+% Input        : o ~ output data
 %                c ~ counters
 %                p ~ parameters
 %                z ~ iterate
-%                r ~ return values
-% Output       : r ~ updated return values
-% Last revised : 28 October 2009
+%                r ~ returns
+% Output       : r ~ updated returns
+% Last revised : 1 February 2011
 
 % Check for maximum iterations
-if c.k >= p.k_max, r.msg = 'itr'; end;
+if c.k >= p.itr_max, r.msg = 'itr'; end;
 
 % Check for optimality and feasibility
-if z.epsilon/p.epsilon_factor < p.opt_tol & z.v < p.inf_tol, r.msg = 'opt'; end;
+if z.epsilon/p.epsilon_factor <= p.opt_tol & z.v/max(z.v0,1) <= p.inf_tol, r.msg = 'opt'; end;
 
 % Initialize return values
 if o.verbosity <= 1
@@ -41,4 +41,18 @@ else
   % Update iterate sequence
   r.x(:,c.k+1) = z.x(:,1);
 
+end
+
+% Check for termination
+if strcmp(r.msg,'---') ~= 1 & o.verbosity > 1
+  
+  % Truncate objective sequence
+  r.f = r.f(1:c.k+1);
+  
+  % Truncate infeasibility measure sequence
+  r.v = r.v(1:c.k+1);
+  
+  % Truncate iterate sequence
+  r.x = r.x(:,1:c.k+1);
+  
 end

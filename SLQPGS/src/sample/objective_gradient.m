@@ -7,11 +7,14 @@ function g = objective_gradient(i,x)
 % Input        : i ~ input
 %                x ~ point
 % Output       : g ~ objective gradient
-% Last revised : 28 October 2009
+% Last revised : 8 July 2010
 
-% Evaluate nonsmooth Rosenbrock gradient
+% Initialize objective gradient
+g = [-2*(1-x(1)); 0];
+
+% Update objective gradient
 if x(1)^2 - x(2) >= 0
-  g = i.scalar*[ 2*x(1);-1] + [-2*(1-x(1));0];
+  g = g + 8*[ 2*x(1); -1];
 else
-  g = i.scalar*[-2*x(1); 1] + [-2*(1-x(1));0];
+  g = g + 8*[-2*x(1);  1];
 end

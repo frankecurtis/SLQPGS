@@ -1,7 +1,7 @@
 SLQPGS
 ======
 
-This is SLQPGS version 1.0.  It has only moderately been tested.  If you encounter any significant bugs, then please contact [Frank E. Curtis](mailto:frank.e.curtis@gmail.com).
+This is SLQPGS version 1.1.  It has only moderately been tested.  If you encounter any significant bugs, then please contact [Frank E. Curtis](mailto:frank.e.curtis@gmail.com).
 
 Overview
 --------

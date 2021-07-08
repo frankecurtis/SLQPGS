@@ -4,11 +4,9 @@ function print_step_acceptance(o,a)
 %
 % Author       : Frank E. Curtis
 % Description  : Prints step acceptance value (i.e., steplength).
-% Input        : o ~ output values
+% Input        : o ~ output data
 %                a ~ acceptance value
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
 % Print step acceptance information
-if o.verbosity == 1 | o.verbosity == 3
-  fprintf(o.fout,'%.2e\n',a);
-end
+fprintf(o.fout,'%.4e\n',a);

@@ -3,33 +3,40 @@ function o = init_output(i)
 % function o = init_output(i)
 %
 % Author       : Frank E. Curtis
-% Description  : Initializes output values.  File handle for output is
-%                set along with labels for printed quantities.
-% Input        : i ~ input values
-% Output       : o ~ output values
-% Last revised : 28 October 2009
+% Description  : Initializes output by opening output files, setting
+%                verbosity level, and storing output header strings.
+% Input        : i ~ inputs
+% Output       : o ~ output data
+% Last revised : 1 February 2011
 
 % Set output file handle
-if ~isfield(i,'fout'), o.fout = 1;
+if ~isfield(i,'output_file'), o.fout = 1;
 else
 
   % Open output file for writing
-  o.fout = fopen(i.fout,'w');
+  o.fout = fopen(i.output_file,'w');
   
-  % Error check for writable output file
-  if (o.fout == -1), error('SLQP-GS: Error opening output file.  Please provide a valid file name (i.fout) as a string.'); end;
+  % Assert that output file is writable
+  assert(o.fout~=-1, sprintf('SLQP-GS: Error opening output file, %s.',i.output_file));
 
 end
 
-% Set verbosity level
-if isfield(i,'verbosity'), o.verbosity = i.verbosity; else o.verbosity = 0; end;
-
-% Store output header and label strings
-if o.verbosity == 0 | o.verbosity == 2
-  o.line = '=====+=========================================';
-  o.quan = '  k  |      f         v        rho       phi';
+% Set verbosity level to ...
+if isfield(i,'verbosity') & isnumeric(i.verbosity) & isscalar(i.verbosity) & round(i.verbosity) == i.verbosity
+  % ... input
+  o.verbosity = i.verbosity;
 else
-  o.line = '=====+==========================================+=========================================================+=========';
-  o.quan = '  k  |      f         v        rho       phi    |    eps      theta   msg    ||d||       m         mred   |   alpha';
-  o.none =                                                   '--------  --------  ---  --------  ---------  --------- | --------';
+  % ... default
+  o.verbosity = 0;
+end
+
+% Store output strings
+if o.verbosity == 0 | o.verbosity == 2
+  o.line = '======+===================================================+============+===========';
+  o.quan = 'Iter. |  Objective     Infeas.  |  Pen. Par.     Merit    |  ||Step||  |  Steplen.';
+  o.none =                                                             '---------- | ----------';
+else
+  o.line = '======+===================================================+==========================================================================+===========';
+  o.quan = 'Iter. |  Objective     Infeas.  |  Pen. Par.     Merit    | Samp. Rad.   Inf. Rad.  Size  Msg.   ||Step||      Model      Mod. Red.  |  Steplen.';
+  o.none =                                                             '----------  ----------  ----  ----  ----------  -----------  ----------- | ----------';
 end

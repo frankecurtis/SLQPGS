@@ -4,12 +4,14 @@ function print_direction(o,z,d)
 %
 % Author       : Frank E. Curtis
 % Description  : Prints direction information.
-% Input        : o ~ outputs
+% Input        : o ~ output data
 %                z ~ iterate
 %                d ~ direction
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
 % Print direction information
-if o.verbosity == 1 | o.verbosity == 3
-  fprintf(o.fout,'%.2e  %.2e  %3d  %.2e  %+.2e  %+.2e | ',z.epsilon,z.theta,d.flag,norm(d.x),d.m,d.m_red);
+if o.verbosity == 0 | o.verbosity == 2
+  fprintf(o.fout,'%.4e | ',norm(d.x));
+else
+  fprintf(o.fout,'%.4e  %.4e  %4d  %4d  %.4e  %+.4e  %+.4e | ',z.epsilon,z.theta,z.size,d.flag,norm(d.x),d.q,d.q_red);
 end

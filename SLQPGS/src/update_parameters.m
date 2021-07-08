@@ -8,25 +8,30 @@ function z = update_parameters(p,z,d)
 %                z ~ iterate
 %                d ~ direction
 % Output       : z ~ updated iterate
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
 % Check model reduction condition
-if abs(d.m_red) <= 2*z.epsilon^2/p.xi_lower
+if d.q_red <= z.epsilon
   
   % Decrease epsilon
   z.epsilon = p.epsilon_factor*z.epsilon;
 
-  % Check infeasibility measure condition
-  if z.v > z.theta
+  % Check penalty update option
+  if strcmp(p.rho_update,'conservative') == 1
+
+    % Check infeasibility measure condition
+    if z.v > z.theta
     
-    % Decrease rho
-    z.rho = p.rho_factor*z.rho;
+      % Decrease rho
+      z.rho = p.rho_factor*z.rho;
   
-  else
+    else
     
-    % Decrease theta
-    z.theta = p.theta_factor*z.theta;
+      % Decrease theta
+      z.theta = p.theta_factor*z.theta;
   
+    end
+    
   end
 
 end

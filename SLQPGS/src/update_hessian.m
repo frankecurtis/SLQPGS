@@ -1,20 +1,33 @@
-function z = update_hessian(p,q,z)
+function z = update_hessian(p,q,z,d)
 
-% function z = update_hessian(p,q,z)
+% function z = update_hessian(p,q,z,d)
 %
 % Author       : Frank E. Curtis
-% Description  : Updates BFGS approximation of Hessian matrix.
+% Description  : Updates BFGS approximation of Hessian of Lagrangian.
 % Input        : p ~ parameters
 %                q ~ quantities
 %                z ~ iterate
+%                d ~ direction
 % Output       : z ~ updated iterate
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
+
+% Check algorithm
+if strcmp(p.algorithm,'SQPGS') == 0, return; end;
 
 % Set step
 s = z.x(:,1) - z.x_last;
 
-% Set change in merit gradient
+% Update ``last'' iterate
+z.x_last = z.x(:,1);
+
+% Evaluate gradient of Lagrangian
+z = eval_lagrangian_gradient(q,z,d);
+
+% Set change in gradient
 y = z.grad - z.grad_last;
+
+% Update ``last'' gradient
+z.grad_last = z.grad;
 
 % Check for zero step
 if norm(s) == 0 | sum(isnan(s)) > 0 | sum(isinf(s)) > 0 | sum(isnan(y)) > 0 | sum(isinf(y)), return; end;
@@ -26,7 +39,7 @@ sy = s'*y; Hs = z.H*s; sHs = s'*Hs;
 if min(abs([sy sHs sHs-sy])) <= p.bfgs_tol, return; end;
 
 % Set theta
-if sy >= p.damp*sHs, theta = 1; else theta = (1-p.damp)*sHs/(sHs-sy); end;
+if sy >= p.bfgs_damp*sHs, theta = 1; else theta = (1-p.bfgs_damp)*sHs/(sHs-sy); end;
 
 % Set r
 r = theta*y + (1-theta)*Hs;
@@ -34,20 +47,17 @@ r = theta*y + (1-theta)*Hs;
 % Update Hessian matrix
 z.H = z.H - (Hs*Hs')/sHs + (r*r')/(theta*sy + (1-theta)*sHs);
 
-% Compute minimum eigenvalue of H
-l1 = eigs(z.H,1,'SM',q.eigs_options);
+% Compute eigenvalues of H
+l = eig(z.H);
 
 % Compute Hessian modification constant
-alpha1 = 1; if l1 < p.xi_lower, alpha1 = min(max((p.xi_lower - 1)/(l1 - 1),0),1); end;
+alpha1 = 1; if min(l) < p.scale_lower, alpha1 = min(max((p.scale_lower - 1)/(min(l) - 1),0),1); end;
 
-% Update Hessian
-z.H = alpha1*z.H + (1-alpha1)*eye(q.n);
-
-% Compute maximum eigenvalue of H
-ln = eigs(z.H,1,'LM',q.eigs_options);
+% Update Hessian approximation
+z.H = alpha1*z.H + (1-alpha1)*speye(q.nV);
 
 % Compute Hessian modification constant
-alphan = 1; if ln > p.xi_upper, alphan = min(max((p.xi_upper - 1)/(ln - 1),0),1); end;
+alphan = 1; if max(l) > p.scale_upper, alphan = min(max((p.scale_upper - 1)/(max(l) - 1),0),1); end;
 
-% Update Hessian
-z.H = alphan*z.H + (1-alphan)*eye(q.n);
+% Update Hessian approximation
+z.H = alphan*z.H + (1-alphan)*speye(q.nV);

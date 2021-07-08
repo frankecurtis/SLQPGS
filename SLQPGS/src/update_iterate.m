@@ -6,7 +6,7 @@ function [c,z] = update_iterate(i,c,p,q,z,d,a,opt)
 % Description  : Updates iterate.  During the line search (opt==0), only
 %                function values are reevaluated at the trial point, whereas
 %                during the main program (opt==1), gradients and the Hessian
-%                matrix are also updated.
+%                approximation are also updated.
 % Input        : i   ~ inputs
 %                c   ~ counters
 %                p   ~ parameters
@@ -14,15 +14,14 @@ function [c,z] = update_iterate(i,c,p,q,z,d,a,opt)
 %                z   ~ iterate
 %                d   ~ direction
 %                a   ~ acceptance values
-%                opt ~ evaluation option
-%                        0 ~ function evaluation only
-%                        1 ~ evaluate all
+%                opt ~ 0 if in line search;
+%                      1 otherwise
 % Output       : c   ~ updated counters
 %                z   ~ updated iterate
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
-% Set quantities for BFGS update
-if strcmp(p.alg,'SQPGS') == 1 & opt == 1, z = update_bfgs_quantities(z); end;
+% Update Hessian matrix
+if opt == 1, z = update_hessian(p,q,z,d); end;
 
 % Update point
 z = update_point(z,d,a);
@@ -30,25 +29,14 @@ z = update_point(z,d,a);
 % Evaluate functions
 [c,z] = eval_functions(i,c,z);
 
+% Set sample points
+if opt == 1, z = set_sample_points(q,z); end;
+
+% Evaluate gradients
+if opt == 1 | strcmp(p.algorithm,'wolfe') == 1, [c,z] = eval_gradients(i,c,p,q,z,opt); end;
+
 % Evaluate infeasibility
-z = eval_infeasibility(z);
+z = eval_infeasibility(q,z);
 
 % Evaluate merit
-z = eval_merit_function(z);
-
-% Check evaluation option
-if opt == 1
-  
-  % Sample points about x
-  z = update_sample_points(q,z);
-
-  % Evaluate gradients
-  [c,z] = eval_gradients(i,c,q,z);
-  
-  % Evaluate merit gradient
-  z = eval_merit_gradient(q,z);
-  
-  % Evaluate Hessian matrix
-  if strcmp(p.alg,'SQPGS') == 1, z = update_hessian(p,q,z); end;
-  
-end
+z = eval_merit(z);

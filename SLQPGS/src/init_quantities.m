@@ -1,62 +1,187 @@
-function q = init_quantities(i)
+function q = init_quantities(i,p)
 
-% function q = init_quantities(i)
+% function q = init_quantities(i,p)
 %
 % Author       : Frank E. Curtis
-% Description  : Initializes quantities including problem size, indicators
-%                for smooth/nonsmooth functions, sampling size, subproblem
-%                quantities, and subproblem solver options.
-% Input        : i ~ input values
+% Description  : Initializes quantities for subproblem.
+% Input        : i ~ inputs
+%                p ~ parameters
 % Output       : q ~ quantities
-% Last revised : 28 October 2009
+% Last revised : 1 February 2011
 
-% Set problem size
-q.n = i.n;
-q.m = i.m;
+% Set problem size quantities
+q.nV = i.nV; q.pO = i.pO; q.nE = i.nE; q.pE = i.pE; q.nI = i.nI; q.pI = i.pI;
 
-% Indicate smooth functions
-q.vf  = i.v(1);
-q.vfs = sum(q.vf==1);
-q.vfn = sum(q.vf==0);
-q.vc  = i.v(2:end);
-q.vcs = sum(q.vc==1);
-q.vcn = sum(q.vc==0);
+% Check subproblem problem to solve
+if strcmp(p.sp_problem,'primal') == 1
 
-% Set sampling size (default: 2*n)
-if isfield(i,'p'), q.p = i.p; else q.p = 2*q.n; end;
+  % Initialize Hessian
+  if strcmp(p.algorithm,'SQPGS') == 1, q.H = sparse(q.nV+1+q.nE+q.nI,q.nV+1+q.nE+q.nI); end;
+  
+  % Initialize linear objective term
+  q.g = [sparse(q.nV+1,1); ones(q.nE+q.nI,1)];
 
-% Set number of auxiliary variables
-q.a = q.m+1;
+  % Initialize subproblem equality constraint matrix
+  q.AE = [];
 
-% Initialize subproblem constraint Jacobian
-q.A = sparse(q.vfs+q.vcs+(q.p+1)*(q.vfn+q.vcn),q.n+q.a);
+  % Initialize subproblem inequality constraint matrix
+  q.AI = sparse(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),q.nV+1+q.nE+q.nI);
 
-% Place auxiliary variable coefficients for objective
-q.A(1:q.vf+(1-q.vf)*(q.p+1),q.n+1) = -ones(q.vf+(1-q.vf)*(q.p+1),1);
+  % Initialize row counters and column counter
+  row = 1; col = q.nV+1;
 
-% Initialize row marker
-row = q.vf+(1-q.vf)*(q.p+1);
+  % Place auxiliary variable coefficients for objective
+  q.AI(row:row+q.pO,col) = -ones(1+q.pO,1);
+  
+  % Increment row and column counters
+  row = row + q.pO + 1; col = col + 1;
 
-% Loop through constraints
-for j = 1:q.m
+  % Loop through equality constraints
+  for j = 1:q.nE
 
-  % Place auxiliary variable coefficients for constraint
-  q.A(row+1:row+q.vc(j)+(1-q.vc(j))*(q.p+1),q.n+1+j) = -ones(q.vc(j)+(1-q.vc(j))*(q.p+1),1);
+    % Place auxiliary variable coefficients for equality constraint j
+    q.AI(row               :row               +q.pE(j),col) = -ones(1+q.pE(j),1);
+    q.AI(row+q.nE+sum(q.pE):row+q.nE+sum(q.pE)+q.pE(j),col) = -ones(1+q.pE(j),1);
 
-  % Increment row marker
-  row = row + q.vc(j)+(1-q.vc(j))*(q.p+1);
+    % Increment row and column counters
+    row = row + q.pE(j) + 1; col = col + 1;
+
+  end
+  
+  % Increment row counter
+  row = row + q.nE + sum(q.pE);
+
+  % Loop through inequality constraints
+  for j = 1:q.nI
+
+    % Place auxiliary variable coefficients for inequality constraint j
+    q.AI(row:row+q.pI(j),col) = -ones(1+q.pI(j),1);
+
+    % Increment row and column counters
+    row = row + q.pI(j) + 1; col = col + 1;
+
+  end
+
+  % Initialize subproblem equality constraint right-hand-side
+  q.bE = [];
+
+  % Initialize subproblem inequality constraint right-hand-side
+  q.bI = zeros(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),1);
+
+  % Set subproblem bounds
+  q.l = [-inf*ones(q.nV+1,1);   sparse(q.nE+q.nI,1)];
+  q.u = [ inf*ones(q.nV+1,1); inf*ones(q.nE+q.nI,1)];
+
+elseif strcmp(p.algorithm,'SQPGS') == 1
+
+  % Initialize Hessian
+  q.H = sparse(q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  
+  % Initialize linear objective term
+  q.g = sparse(q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),1);
+  
+  % Initialize subproblem inequality constraint Jacobian
+  q.AI = sparse(q.nE+q.nI,q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  
+  % Initialize subproblem equality constraint Jacobian
+  q.AE = sparse(q.nV+1,q.nV+1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI));
+  
+  % Place dual variable coefficients for primal auxiliary variable coefficient for objective
+  q.AE(q.nV+1,q.nV+1:q.nV+1+q.pO) = ones(1,1+q.pO);
+  
+  % Initialize row and column counters
+  row = 1; col = q.nV+1+q.pO+1;
+
+  % Loop through equality constraints
+  for j = 1:q.nE
+
+    % Place dual variable coefficients for primal auxiliary variable coefficients for equality constraints
+    q.AI(row,col               :col               +q.pE(j)) = ones(1,1+q.pE(j));
+    q.AI(row,col+q.nE+sum(q.pE):col+q.nE+sum(q.pE)+q.pE(j)) = ones(1,1+q.pE(j));
+    
+    % Increment row and column counters
+    row = row + 1; col = col + q.pE(j) + 1;
+    
+  end
+  
+  % Increment column counter
+  col = col + q.nE + sum(q.pE);
+
+  % Loop through inequality constraints
+  for j = 1:q.nI
+  
+    % Place dual variable coefficients for primal auxiliary variable coefficients for inequality constraints
+    q.AI(row,col:col+q.pI(j)) = ones(1,1+q.pI(j));
+    
+    % Increment row and column counters
+    row = row + 1; col = col + q.pI(j) + 1;
+    
+  end
+
+  % Initialize subproblem equality constraint right-hand-side
+  q.bE = sparse(q.nV+1,1);
+  
+  % Set subproblem inequality constraint right-hand-side
+  q.bI = ones(q.nE+q.nI,1);
+  
+  % Set subproblem bounds
+  q.l = [-inf*ones(q.nV,1);   sparse(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),1)];
+  q.u = [ inf*ones(q.nV,1); inf*ones(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI),1)];
+
+else
+
+  % Initialize linear objective term
+  q.g = sparse(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV,1);
+  
+  % Initialize subproblem inequality constraint Jacobian
+  q.AI = sparse(q.nE+q.nI,1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV);
+  
+  % Initialize subproblem equality constraint Jacobian
+  q.AE = sparse(q.nV+1,1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV);
+  
+  % Place dual variable coefficients for primal bounds
+  q.AE(1:q.nV,1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+1:1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV) = [-speye(q.nV) speye(q.nV)];
+  
+  % Place dual variable coefficients for primal auxiliary variable coefficient for objective
+  q.AE(q.nV+1,1:1+q.pO) = ones(1,1+q.pO);
+  
+  % Initialize row and column counters
+  row = 1; col = 1+q.pO+1;
+
+  % Loop through equality constraints
+  for j = 1:q.nE
+
+    % Place dual variable coefficients for primal auxiliary variable coefficients for equality constraints
+    q.AI(row,col               :col               +q.pE(j)) = ones(1,1+q.pE(j));
+    q.AI(row,col+q.nE+sum(q.pE):col+q.nE+sum(q.pE)+q.pE(j)) = ones(1,1+q.pE(j));
+    
+    % Increment row and column counters
+    row = row + 1; col = col + q.pE(j) + 1;
+    
+  end
+  
+  % Increment column counter
+  col = col + q.nE + sum(q.pE);
+
+  % Loop through inequality constraints
+  for j = 1:q.nI
+  
+    % Place dual variable coefficients for primal auxiliary variable coefficients for inequality constraints
+    q.AI(row,col:col+q.pI(j)) = ones(1,1+q.pI(j));
+    
+    % Increment row and column counters
+    row = row + 1; col = col + q.pI(j) + 1;
+    
+  end
+
+  % Initialize subproblem equality constraint right-hand-side
+  q.bE = sparse(q.nV+1,1);
+  
+  % Set subproblem inequality constraint right-hand-side
+  q.bI = ones(q.nE+q.nI,1);
+  
+  % Set subproblem bounds
+  q.l = [  sparse(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV,1)];
+  q.u = [inf*ones(1+q.pO+2*(q.nE+sum(q.pE))+q.nI+sum(q.pI)+2*q.nV,1)];
 
 end
-
-% Initialize subproblem constraint right-hand-side
-q.b = sparse(q.vfs+q.vcs+(q.p+1)*(q.vfn+q.vcn),1);
-
-% Set bounds
-q.l = [-inf*ones(q.n+1,1);   sparse(q.a-1,1)];
-q.u = [ inf*ones(q.n+1,1); inf*ones(q.a-1,1)];
-
-% Set subproblem solver options (default: no display)
-if isfield(i,'options'), q.options = i.options; else q.options = optimset('Display','off'); end;
-
-% Set eigs options (default: no display)
-if isfield(i,'eigs_options'), q.eigs_options = i.eigs_options; else q.eigs_options.disp = 0; end;
