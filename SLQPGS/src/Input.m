@@ -9,7 +9,8 @@ classdef Input < handle
     sp_solver  % Subproblem solver handle
     sp_options % Subproblem solver options
     stat_tol   % Stationarity tolerance
-    feas_tol   % Feasibility violation tolerance
+    eq_tol     % Feasibility violation tolerance of equality constraints
+    ineq_tol   % Feasibility violation tolerance of inequality constraints
     iter_max   % Iteration limit
     nV         % Number of variables
     nE         % Number of equality constraints
@@ -20,6 +21,8 @@ classdef Input < handle
     f          % Problem function handle
     d          % Data to pass to function/gradient evaluators
     x          % Initial primal point
+    output     % Output type
+    log_fields % Fields of Iterate to log at each accepted point
     
   end
   
@@ -27,25 +30,50 @@ classdef Input < handle
   methods
     
     % Constructor
-    function i = Input(dir)
+    function i = Input(prob)
+       
+      dir_prob = false;
+      if isstruct(prob)
+        in = prob;
+      else
+        dir_prob = true;
+        % Assert that problem function directory has been provided as a string
+        assert(ischar(prob),'SLQP-GS: Problem prob must either be a struct of parameters or a string of the path.');
       
-      % Assert that problem function directory has been provided as a string
-      assert(ischar(dir),'SLQP-GS: Problem function folder, dir, must be specified as a string.');
-
-      % Print directory
-      fprintf('SLQP-GS: Adding to path the directory "%s"\n',dir);
+        % Assert that slqpgs_inputs.m exists in problem function directory
+        assert(exist(sprintf('%s/slqpgs_inputs.m',prob),'file')~=0,sprintf('SLQP-GS: Problem input file, %s, does not exist.',sprintf('%s/slqpgs_inputs.m',prob)));
+  
+        % Add problem function directory to path
+        addpath(prob);
       
-      % Add problem function directory to path
-      addpath(dir);
-
-      % Assert that slqpgs_inputs.m exists in problem function directory
-      assert(exist(sprintf('%s/slqpgs_inputs.m',dir),'file')~=0,sprintf('SLQP-GS: Problem input file, %s, does not exist.',sprintf('%s/slqpgs_inputs.m',dir)));
-
-      % Print inputs file
-      fprintf('SLQP-GS: Loading inputs from "%s"\n',which('slqpgs_inputs'));
+        % Read problem data
+        in = feval('slqpgs_inputs');
+      end
       
-      % Read problem data
-      in = feval('slqpgs_inputs');
+      % Set output to file, console, or completely off
+      if ~isfield(in,'output') % By default, print to console
+        in.output = 1;
+      end
+      switch in.output
+        case 0
+          [i.output,out_str] = deal(0,[]);
+        case 1 
+          [i.output,out_str] = deal(1,'console');
+        otherwise
+          if ischar(in.output)
+            [i.output,out_str] = deal(in.output);
+          else
+            error('SLQP-GS: Output target, i.output must be 0, 1, or a filename.');
+          end
+      end
+          
+      if ~isempty(out_str) && dir_prob
+        % Print directory
+        fprintf('SLQP-GS: Added to path the directory "%s"\n',prob);
+      
+        % Print inputs file
+        fprintf('SLQP-GS: Loaded inputs from "%s"\n',which('slqpgs_inputs'));
+      end
       
       % Set data for functions
       if isfield(in,'algorithm'),  i.algorithm  = in.algorithm;  else i.algorithm  = 0;                         end;
@@ -55,7 +83,8 @@ classdef Input < handle
 
       % Set data for functions
       if isfield(in,'stat_tol'), i.stat_tol = in.stat_tol; else i.stat_tol = 1e-06; end;
-      if isfield(in,'feas_tol'), i.feas_tol = in.feas_tol; else i.feas_tol = 1e-04; end;
+      if isfield(in,'eq_tol'),   i.eq_tol   = in.eq_tol;   else i.eq_tol   = 1e-04; end;
+      if isfield(in,'ineq_tol'), i.ineq_tol = in.ineq_tol; else i.ineq_tol = 1e-04; end;
       if isfield(in,'iter_max'), i.iter_max = in.iter_max; else i.iter_max = 1e+03; end;
 
       % Assert that numbers of variables and constraints has been specified
@@ -77,7 +106,12 @@ classdef Input < handle
       if i.nI > 0, i.pI = in.pI; end;
       
       % Assert that problem function has been specified
-      assert(isfield(in,'f') & ischar(in.f),'SLQP-GS: Problem functions handle, i.f, must be specified as a string.');
+      assert(isfield(in,'f'),'SLQP-GS: Problem functions filename/handle, i.f, must be specified.');
+      if ischar(in.f)
+         in.f = str2func(in.f);
+      else
+         assert(isa(in.f,'function_handle'),'SLQP-GS: Problem functions filename/handle, i.f, must be specified as a string or a function handle.');
+      end
       
       % Set problem function handle
       i.f = in.f;
@@ -91,13 +125,25 @@ classdef Input < handle
       % Set initial point
       i.x = in.x;
       
-      % Print success message
-      fprintf('SLQP-GS: Inputs appear loaded successfully\n');
-      fprintf('SLQP-GS: Problem to be read from "%s"\n',which(i.f));
-      fprintf('SLQP-GS: Use "S.optimize" to run optimizer\n');
-      fprintf('SLQP-GS: Output to be printed to slqpgs.out\n');
-      fprintf('SLQP-GS: Use "S.getSolution" to return final iterate\n');
-      fprintf('SLQP-GS: (After optimizing and getting iterate, advised to "clear S" before loading new problem)\n');
+      if isfield(in,'log_fields')
+        assert(iscell(in.log_fields) & min(size(in.log_fields)) == 1,'SLQP-GS: Logging, i.log_fields must be 1D cell array.');
+        i.log_fields = in.log_fields;
+      else
+        i.log_fields = [];
+      end
+              
+      if ~isempty(out_str) 
+        % Print success message
+        fprintf('SLQP-GS: Inputs appear loaded successfully\n');
+        % Since i.f can now be an anonymous function, calling which is no
+        % longer possible.  But since this info is basically the same as
+        % which('slqpgs_inputs'), we don't really need to print this "again".
+        % fprintf('SLQP-GS: Problem to be read from "%s"\n',which(i.f));
+        fprintf('SLQP-GS: Use "S.optimize" to run optimizer\n');
+        fprintf('SLQP-GS: Output to be printed to %s\n',out_str);
+        fprintf('SLQP-GS: Use "S.getSolution" to return final iterate\n');
+        fprintf('SLQP-GS: (After optimizing and getting iterate, advised to "clear S" before loading new problem)\n');
+      end
       
     end
   

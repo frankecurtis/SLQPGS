@@ -1,12 +1,13 @@
 % README
 %
 % Author       : Frank E. Curtis
+% Contributor  : Tim Mitchell
 % Description  : README file.
 
 % Please cite:
-%   F. E. Curtis and M. L. Overton, ``A Sequential Quadratic Programming
-%   Algorithm for Nonconvex, Nonsmooth Constrained Optimization,''
-%   in third round of review for SIAM Journal on Optimization.
+%   Frank E. Curtis and Michael L. Overton. "A Sequential Quadratic
+%   Programming Algorithm for Nonconvex, Nonsmooth Constrained
+%   Optimization." SIAM Journal on Optimization, 22(2):474–500, 2012.
 
 % This code runs a sequential quadratic programming method with gradient
 % sampling sampling (SQP-GS) or a sequential linear programming method with
@@ -30,16 +31,34 @@
 % states of Matlab's built-in rand and randn functions should be set prior
 % to a run to obtain reproducable results.
 
-% A user need only create a slqpgs_inputs.m file and another .m file for
-% the data function evaluations to run the code.  Please refer to the
-% sample problem in ./sample to see how these files should be formatted and
-% see below for more details.  If a QP or LP solver other than Matlab's
-% built-in quadprog or linprog, respectively, is desired, then changes to
-% the solveSubproblem method in the Direction class may be necessary.  We
-% recommend the solver MOSEK (www.mosek.com).  For that solver one need
-% only set the path to include the directory containing MOSEK's quadprog
-% function; no changes to the solveSubproblem method are necessary as the
-% formatting for MOSEK's quadprog is the same as that for Matlab's.
+% To run the code, a user need only create either:
+%   - an slqpgs_inputs.m file specifying the required algorithm parameters
+%    (see below) and optimization problem definition, which is called via
+%       >> S = SLQPGS('path_to_this_file') 
+%   - or a struct params specifying the same field/value pairs, called via
+%       >> S = SLQPGS(params).
+%     Using the provided sample problem as an example:
+%       >> params = slqpgs_inputs();
+%       >> S = SLQPGS(params);
+%     Note that in this latter case, the functions implementing the problem
+%     must already be on the path, as opposed to the former approach where
+%     SLQPGS automatically adds path_to_this_file to the MATLAB path.
+% The data function evaluations implementing the desired optimization
+% problem can either be provided as a:
+%   - string of the name of the corresponding file which implement all the
+%     required data function evaluations or 
+%   - an anonymous function handle of the same.
+% The function signature (input and output arguments) is the same for both
+% types.  Please refer to the sample problem in ./sample to see how these
+% functions/files should be formatted and see below for more details.
+ 
+% If a QP or LP solver other than Matlab's built-in quadprog or linprog,
+% respectively, is desired, then changes to the solveSubproblem method in
+% the Direction class may be necessary.  We recommend the solver MOSEK
+% (www.mosek.com).  For that solver one need only set the path to include
+% the directory containing MOSEK's quadprog function; no changes to the
+% solveSubproblem method are necessary as the formatting for MOSEK's
+% quadprog is the same as that for Matlab's.
 
 % The remainder of this file includes more detail about how to create a
 % problem instance, how to read the output file, and how to change the
@@ -48,7 +67,8 @@
 % CREATING A PROBLEM INSTANCE
 
 % Please see the sample problem in ./sample as a guide.  The required
-% fields for the input structure i, returned by slqpgs_inputs.m, are:
+% fields for the input structure i, returned by slqpgs_inputs.m or provided
+% explicitly by the user, are:
 %   i.nV ~ number of variables
 %   i.nE ~ number of equality constraints
 %   i.nI ~ number of inequality constraints
@@ -59,16 +79,25 @@
 %           points for each inequality constraint
 %   i.f  ~ handle for file evaluating the problem functions and gradients
 %   i.x  ~ initial point, a column vector of length i.nV
-% Optional fields for the input structure i, returned by slqpgs_inputs, are:
+% Optional fields for the input structure i are:
 %   i.algorithm  ~ algorithm option, 0 = SQP-GS and 1 = SLP-GS; default is 0
 %   i.sp_problem ~ subproblem option, 0 = primal and 1 = dual; default is 0
 %   i.sp_solver  ~ subproblem solver handle; default is 'quadprog'
 %   i.sp_options ~ subproblem solver options; default is optimset('Display','off')
 %   i.stat_tol   ~ termination tolerance; default is 1e-06
-%   i.feas_tol   ~ feasibility tolerance; default is 1e-04
+%   i.eq_tol     ~ feasibility tolerance for equality constraints; default is 1e-04
+%   i.ineq_tol   ~ feasibility tolerance for inequality constraints; default is 1e-04
 %   i.iter_max   ~ maximum iterations; default is 1e+03
 %   i.d          ~ data structure to be passed to problem function evaluator
-
+%   i.output     ~ type of output, 0 = none, 1 = console, string = filename
+%                  to write output to; default is 1
+%   i.log_fields ~ cell array of string names corresponding to fields of
+%                  Iterate that one wishes to log on every step.  This
+%                  history of iterate information is obtained after
+%                  optimization has terminated by calling 
+%                       [x,log] = S.getSolution()
+%                  where x is the computed solution and log is the log.
+%
 % The numbers of sample points --- i.pO, i.pE, and i.pI --- should be
 % chosen based on the smoothness of each problem function.  If a given
 % function is smooth, then the number of sample points for that function
@@ -80,15 +109,15 @@
 % (if not more).  Generally speaking, more sample points will produce
 % better search directions, but at a higher cost per iteration.
 
-% The .m file for evaluating the problem function and gradient values
-% should follow the format in the example; i.e., it should contain a switch
-% (or if statements) on the input o and return the desired function or
-% gradient value through the output v.  Note that the objective gradient is
-% expected to be a column vector and any constraint gradient is expected to
-% be a row vector.  Also note that constraint function and gradient values
-% are to be returned individually according to the index j provided as an
-% input.  This is in contrast to many optimization codes that return an
-% entire Jacobian matrix at once.
+% The .m file or anonymous function handle for evaluating the problem
+% function and gradient values should follow the format in the example;
+% i.e., it should contain a switch (or if statements) on the input o and
+% return the desired function or gradient value through the output v.  Note
+% that the objective gradient is expected to be a column vector and any
+% constraint gradient is expected to be a row vector.  Also note that
+% constraint function and gradient values are to be returned individually
+% according to the index j provided as an input.  This is in contrast to
+% many optimization codes that return an entire Jacobian matrix at once.
 
 % READING THE OUTPUT FILE AND THE RETURNED VALUES
 

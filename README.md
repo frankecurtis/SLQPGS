@@ -1,12 +1,12 @@
 SLQPGS
 ======
 
-This is SLQPGS version 1.2.  It has only moderately been tested.  If you encounter any significant bugs, then please contact [Frank E. Curtis](mailto:frank.e.curtis@gmail.com).
+This is SLQPGS version 1.3.  If you encounter any significant bugs, then please contact [Frank E. Curtis](mailto:frank.e.curtis@gmail.com).
 
 Overview
 --------
 
-SLQPGS (Sequential Linear or Quadratic Programming with Gradient Sampling) is a prototype code for nonconvex, nonsmooth constrained optimization. 
+SLQPGS (Sequential Linear or Quadratic Programming with Gradient Sampling) is a prototype code for nonconvex, nonsmooth constrained optimization. The search direction computation is performed by minimizing a local linear or quadratic model of the objective subject to a linearization of the constraints. Gradients for each problem function are sampled to make the search direction computation effective in nonsmooth regions. The user has the option of choosing between SLP-GS or SQP-GS modes, and has the option of tuning various input parameters for each application. The code for a sample problem is provided in order to illustrate how other problems can be formulated and solved with the code.
 
 The code is written in Matlab and released under the MIT License.
 

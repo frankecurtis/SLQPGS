@@ -4,10 +4,10 @@ classdef Output < handle
   % Class properties (private access)
   properties (SetAccess = private, GetAccess = private)
   
-    s % Output stream
-    l % Line break string
-    q % Quantities string
-    n % Last iterate string
+    s       % Output stream
+    l       % Line break string
+    q       % Quantities string
+    n       % Last iterate string
     
   end
   
@@ -15,16 +15,21 @@ classdef Output < handle
   methods
 
     % Constructor
-    function o = Output
+    function o = Output(output_type)
       
       % Start clock
       tic;
       
       % Set output stream
-      o.s = fopen('slqpgs.out','w');
-      
-      % Assert output stream has been opened
-      assert(o.s~=-1,'SLQP-GS: Failed to open slqpgs.out.');
+      if isnumeric(output_type)
+        % Print to console
+        o.s = output_type; 
+      else
+        % To file
+        o.s = fopen(output_type,'w');
+        % Assert output stream has been opened
+        assert(o.s~=-1,'SLQP-GS: Failed to open %s.',output_type);
+      end
       
       % Store output strings
       o.l = '======+===================================================+===========================================+========================+===========';
@@ -105,7 +110,7 @@ classdef Output < handle
       
       % Print SLQP-GS version
       fprintf(o.s,'+======================+\n');
-      fprintf(o.s,'| SLQP-GS, version 1.2 |\n');
+      fprintf(o.s,'| SLQP-GS, version 1.3 |\n');
       fprintf(o.s,'+======================+\n');
       fprintf(o.s,'\n');
       
@@ -150,6 +155,9 @@ classdef Output < handle
       end
       fprintf(o.s,'\n');
       
+      % If a file, close nonstandard output stream
+      if ~ismember(o.s,[0 1 2]), fclose(o.s); end;
+      
     end
     
     % Print iterate information
@@ -157,14 +165,6 @@ classdef Output < handle
       
       % Print iterate information
       fprintf(o.s,'%5d | %+.4e  %.4e | %.4e  %+.4e | ',c.k,z.f,z.v,z.rho,z.phi);
-      
-    end
-    
-    % Terminate output
-    function terminate(o)
-      
-      % Close nonstandard output stream
-      if ~ismember(o.s,[0 1 2]), fclose(o.s); end;
       
     end
     

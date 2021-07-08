@@ -16,7 +16,8 @@ i.sp_options = optimset('Display','off');
 
 % Set tolerances
 i.stat_tol = 1e-06;
-i.feas_tol = 1e-04;
+i.eq_tol   = 1e-04;
+i.ineq_tol = 0;
 i.iter_max = 1e+03;
 
 % Set problem size
@@ -34,6 +35,8 @@ i.x = randn(i.nV,1);
 
 % Set function handle
 i.f = 'slqpgs_problem';
+% Alternatively, this can be specified as a function handle
+% i.f = @slqpgs_problem;
 
 % Set function data
 i.d.w = 8;

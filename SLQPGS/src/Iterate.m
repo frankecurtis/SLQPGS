@@ -17,6 +17,8 @@ classdef Iterate < handle
     JI      % Inequality constraint Jacobian values
     H       % Hessian approximation
     v       % Feasibility violation measure value
+    v_eq    % Feasibility violation measure value for equalities
+    v_ineq  % Feasibility violation measure value for inequalities
     phi     % Merit function value
     kkt     % KKT optimality error estimate
     s       % Primal point displacements
@@ -68,7 +70,7 @@ classdef Iterate < handle
         z.H = speye(i.nV);
         
       end
-      
+         
     end
     
     % Termination checker
@@ -78,11 +80,15 @@ classdef Iterate < handle
       b = 0;
       
       % Update termination based on stationarity condition for optimization problem
-      if max([d.phi_red,z.epsilon]) <= i.stat_tol & z.v <= i.feas_tol, b = 1; return; end;
-      
-      % Update termination based on stationarity condition for feasibility problem
-      if max([d.phi_red,z.epsilon]) <= i.stat_tol & z.v >  i.feas_tol, b = 2; return; end;
-      
+      if max([d.phi_red,z.epsilon]) <= i.stat_tol % Stationarity condition
+        if z.v_eq <= i.eq_tol && z.v_ineq <= i.ineq_tol
+          b = 1;    % Converged to a feasible stationary point
+        else
+          b = 2;    % Converged to an infeasible stationary point
+        end
+        return
+      end
+            
       % Update termination based on iteration count
       if c.k >= i.iter_max, b = 3; return; end;
       
@@ -95,7 +101,7 @@ classdef Iterate < handle
       c.incrementFunctionCount;
       
       % Evaluate objective value
-      z.f = feval(i.f,z.x(:,1),i.d,[],0);
+      z.f = i.f(z.x(:,1),i.d,[],0);
 
       % Initialize equality constraint values
       z.cE = sparse(i.nE,1);
@@ -104,7 +110,7 @@ classdef Iterate < handle
       for k = 1:i.nE
 
         % Evaluate kth equality constraint value
-        z.cE(k) = feval(i.f,z.x(:,1),i.d,k,2);
+        z.cE(k) = i.f(z.x(:,1),i.d,k,2);
   
       end
       
@@ -115,7 +121,7 @@ classdef Iterate < handle
       for k = 1:i.nI
 
         % Evaluate kth inequality constraint value
-        z.cI(k) = feval(i.f,z.x(:,1),i.d,k,4);
+        z.cI(k) = i.f(z.x(:,1),i.d,k,4);
 
       end
       
@@ -134,8 +140,8 @@ classdef Iterate < handle
       for j = 1:1+opt*i.pO
   
         % Evaluate objective gradient value at sample point j
-        if j == 1, z.g(:,j) = feval(i.f,z.x(:,1)       ,i.d,[],1);
-        else       z.g(:,j) = feval(i.f,z.x(:,mark+j-1),i.d,[],1); end;
+        if j == 1, z.g(:,j) = i.f(z.x(:,1)       ,i.d,[],1);
+        else       z.g(:,j) = i.f(z.x(:,mark+j-1),i.d,[],1); end;
 
       end
 
@@ -149,8 +155,8 @@ classdef Iterate < handle
         for j = 1:1+opt*i.pE(k)
 
           % Evaluate kth equality constraint gradient value at sample point j
-          if j == 1, z.JE(k,:,j) = feval(i.f,z.x(:,1)       ,i.d,k,3);
-          else       z.JE(k,:,j) = feval(i.f,z.x(:,mark+j-1),i.d,k,3); end;
+          if j == 1, z.JE(k,:,j) = i.f(z.x(:,1)       ,i.d,k,3);
+          else       z.JE(k,:,j) = i.f(z.x(:,mark+j-1),i.d,k,3); end;
 
         end
   
@@ -166,8 +172,8 @@ classdef Iterate < handle
         for j = 1:1+opt*i.pI(k)
   
           % Evaluate kth inequality constraint gradient value at sample point j
-          if j == 1, z.JI(k,:,j) = feval(i.f,z.x(:,1)       ,i.d,k,5);
-          else       z.JI(k,:,j) = feval(i.f,z.x(:,mark+j-1),i.d,k,5); end;
+          if j == 1, z.JI(k,:,j) = i.f(z.x(:,1)       ,i.d,k,5);
+          else       z.JI(k,:,j) = i.f(z.x(:,mark+j-1),i.d,k,5); end;
 
         end
 
@@ -208,15 +214,20 @@ classdef Iterate < handle
     % Infeasibility evaluator
     function evalInfeasibility(z,i)
       
-      % Initialize violation vector
-      vec = [];
+      % Initialize violations to zero (in case of no constraints)
+      [z.v_eq,z.v_ineq] = deal(0);
+
+      % Separate violations for equality and inequality constraints
+      % Used for separate termination feasibility tolerances
+      if i.nE > 0
+          z.v_eq = norm( z.cE(:,1), 1);               
+      end
+      if i.nI > 0
+          z.v_ineq = norm( max(z.cI(:,1),0), 1); 
+      end
       
-      % Update vector for constraint values
-      if i.nE > 0, vec = z.cE(:,1);               end;
-      if i.nI > 0, vec = [vec; max(z.cI(:,1),0)]; end;
-      
-      % Evaluate vector norm
-      z.v = norm(vec,1);
+      % Evaluate total violation
+      z.v = z.v_eq + z.v_ineq;
       
     end
     
@@ -343,7 +354,7 @@ classdef Iterate < handle
       end
 
     end
-        
+    
   end
-  
+ 
 end
